@@ -1,73 +1,76 @@
 // Copyright 2022 negineri.
 // SPDX-License-Identifier: Apache-2.0
 
+// Package cmd is provided by cobra
 package cmd
 
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+const (
+	configfileDefault = "~/.hashibiro.yaml"
+)
+
 var cfgFile string
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "hashibiro",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+func newRootCmd() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "hashibiro",
+		Short: "alive monitor",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			version, err := cmd.Flags().GetBool("version")
+			if err != nil {
+				return err
+			}
+			if version {
+				fmt.Println(Version)
+				return nil
+			}
+			return nil
+		},
+	}
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.hashibiro.yaml)")
+
+	rootCmd.Flags().BoolP("version", "v", false, "Show version")
+	rootCmd.AddCommand(newVersionCmd())
+	return rootCmd
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	err := rootCmd.Execute()
+	err := newRootCmd().Execute()
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
-func init() {
+// Initialize is renaming of init()
+// Rewrite in a different form in the future.
+// This is called by main.main() before Execute().
+func Initialize() {
 	cobra.OnInitialize(initConfig)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.hashibiro.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-// initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
+	if cfgFile == "" {
+		cfgFile = configfileDefault
+	}
+	if strings.HasPrefix(cfgFile, "~") {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".hashibiro" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".hashibiro")
+		cfgFile = strings.Replace(cfgFile, "~", home, 1)
 	}
+	viper.SetConfigFile(cfgFile)
 
-	viper.AutomaticEnv() // read in environment variables that match
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

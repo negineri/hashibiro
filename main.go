@@ -6,5 +6,6 @@ package main
 import "github.com/negineri/hashibiro/cmd"
 
 func main() {
+	cmd.Initialize()
 	cmd.Execute()
 }
